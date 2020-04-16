@@ -1,0 +1,489 @@
+---
+title: "BMPR1BBY - R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+
+```{r Setup}
+#Some initial check of the cDNA sequences - builds upon SexDetermination.R
+paste(as.character(trans(x=aln_pos_chr21_clustalo[1,aln_interval], codonstart = 2)), collapse = "") #Checking frame
+paste(as.character(trans(x=aln_pos_chr21_clustalo[2,aln_interval], codonstart = 2)), collapse = "") #Checking frame
+checkAlignment(aln_pos_chr21_clustalo[,c(aln_interval, max(aln_interval)+1)])
+dnds(x=aln_pos_chr21_clustalo[,c(aln_interval, max(aln_interval)+1)],codonstart = 32) #Start & extra nucleotide to match Nima's gene model
+dist.aa(x=trans(aln_pos_chr21_clustalo[,c(aln_interval, max(aln_interval)+1)], codonstart = 32))
+stringdist(paste(as.character(aln_pos_chr21_clustalo[1,c(aln_interval, max(aln_interval)+1)]), collapse = ""), paste(as.character(aln_pos_chr21_clustalo[2,c(aln_interval, max(aln_interval)+1)]), collapse = ""))
+dist.dna(x=aln_pos_chr21_clustalo[,c(aln_interval, max(aln_interval)+1)], model = "raw")
+bmpr1bb_herring_cDNA <- as.list(aln_pos_chr21_clustalo[,c(aln_interval, max(aln_interval)+1)[-(1:31)]])
+bmpr1bb_herring_cDNA[1] <- del.gaps(bmpr1bb_herring_cDNA[1])
+
+```
+
+
+```{r Data collection}
+#Importing BMPR1BB from other species
+Spotted_gar_1 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Lepisosteus_oculatus_bmpr1bb_201_sequence.fa")[1]
+#Spotted_gar_2 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Lepisosteus_oculatus_bmpr1bb_202_sequence.fa")[1]
+Medaka_1 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Oryzias_latipes_bmpr1bb_201_sequence.fa")[1]
+Stickleback_1 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Gasterosteus_aculeatus_bmpr1bb_201_sequence.fa")[1]
+#Stickleback_2 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Gasterosteus_aculeatus_bmpr1bb_202_sequence.fa")[1]
+#Stickleback_3 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Gasterosteus_aculeatus_bmpr1bb_203_sequence.fa")[1]
+#Zebra_1 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Danio_rerio_bmpr1bb_201_sequence.fa")[1]
+Zebra_2 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Danio_rerio_bmpr1bb_202_sequence.fa")[1]
+
+
+bmpr1bb_cDNA <- c(bmpr1bb_herring_cDNA,Spotted_gar_1, Medaka_1, Stickleback_1, Zebra_2)
+bmpr1bb_cDNA_clustalo <- clustalomega(x = bmpr1bb_cDNA)
+clustalo_target <- range(which(as.character(bmpr1bb_cDNA_clustalo[1,]) != "-")) #Finding the block that corresponds to the Y copy of BMPR1BBY
+#range(which(as.character(bmpr1bb_cDNA_clustalo[2,]) != "-"))
+bmpr1bb_cDNA_target_clustalo <- bmpr1bb_cDNA_clustalo[,clustalo_target[1]:clustalo_target[2]]
+orginal_names <- rownames(bmpr1bb_cDNA_target_clustalo)
+rownames(bmpr1bb_cDNA_target_clustalo) <- c("Herring_Y", "Herring_A", "Spotted_Gar", "Medaka", "Stickleback", "Zebrafish")
+#as.character(trans(bmpr1bb_cDNA_target_clustalo))[1:6, 290:297]
+#as.character(trans(bmpr1bb_cDNA_target_clustalo))[1:6, 1:8]
+dist.aa(trans(bmpr1bb_cDNA_target_clustalo)) #Aminoacid changes
+dist.aa(bmpr1bb_cDNA_target_clustalo) #Nucleotide changes
+bmpr1bb_dnds <- dnds(bmpr1bb_cDNA_target_clustalo)
+write.table(x = round(as.matrix(bmpr1bb_dnds), digits = 2),file = "~/Projects/Herring/data/SexDetermination/bmpr1bb_dnds_matrix.txt", sep = "\t", col.names = F, quote = F)
+
+```
+
+Moving on to visualisations
+```{r Visualisation}
+#Visualisations
+#Alignment to file
+bmpr1bb_out_clust <- trans(bmpr1bb_cDNA_target_clustalo)
+aln_out_order <- c(2,1,3,4,5,6)
+aln_breaks <- seq(from = 1, to = length(bmpr1bb_out_clust[1,]), by = 100) 
+aln_file <- "~/Projects/Herring/doc/SexDet/bmpr1bb_other_fish_aln_wide.txt"
+for(i in 1:(length(aln_breaks)-1)) {
+  alview(bmpr1bb_out_clust[aln_out_order,aln_breaks[i]:(aln_breaks[i+1]-1)], showpos = F, file = aln_file)
+  write("", file = aln_file, append = T)
+}
+alview(bmpr1bb_out_clust[aln_out_order,aln_breaks[i+1]:length(bmpr1bb_out_clust[1,])], file = aln_file, showpos = F)
+
+#Alternative version, with short and long Y copies from Nima's annotation and other species from the cDNA alignment above
+bmpr1bb_AA_seq <- read.FASTA("~/Projects/Herring/data/SexDetermination/BMPR1BB_short_and_long.fa.txt", type = "AA")
+bmpr1bb_AA_aln <- clustalomega(bmpr1bb_AA_seq) 
+aln_out_order <- c(3,1,2,4,5,6,7)
+aln_breaks <- seq(from = 1, to = length(bmpr1bb_AA_aln[1,]), by = 100) 
+aln_file <- "~/Projects/Herring/doc/SexDet/bmpr1bb_Y_long_and_short_aln.txt"
+for(i in 1:(length(aln_breaks)-1)) {
+  alview(bmpr1bb_AA_aln[aln_out_order,aln_breaks[i]:(aln_breaks[i+1]-1)], showpos = F, file = aln_file)
+  write("", file = aln_file, append = T)
+}
+alview(bmpr1bb_AA_aln[aln_out_order,aln_breaks[i+1]:length(bmpr1bb_AA_aln[1,])], file = aln_file, showpos = F)
+
+
+
+pdf(file = "~/Projects/Herring/doc/SexDet/bmpr1bb_AA_aln.pdf")
+image(bmpr1bb_out_clust)
+dev.off()
+
+#Amino acid distance tree
+bmpr1bb_aa_dist <- dist.aa(trans(bmpr1bb_cDNA_target_clustalo),scaled = T)
+bmpr1bb_aa_tree <- bionj(bmpr1bb_aa_dist)
+
+#Nucleotide distance tree
+bmpr1bb_dna_dist <- dist.dna(bmpr1bb_cDNA_target_clustalo, model = "GG95")
+bmpr1bb_dna_tree <- bionj(bmpr1bb_dna_dist)
+
+tip_color_vec <- rep("black", times = length(bmpr1bb_aa_tree$tip.label))
+tip_color_vec[1] <- "darkorchid1"
+tip_color_vec[2] <- "darkorchid4"
+pdf(file = "~/Projects/Herring/doc/SexDet/bmpr1bb_trees.pdf")
+plot.phylo(bmpr1bb_aa_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "AA distance")
+plot.phylo(bmpr1bb_dna_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "Nucleotide distance")
+dev.off()
+```
+
+
+```{r BMPR1BBY - PAML}
+#Generating files need for PAML analysis
+dim(bmpr1bb_cDNA_target_clustalo)
+write(x = paste0(dim(bmpr1bb_cDNA_target_clustalo)[1], " ", dim(bmpr1bb_cDNA_target_clustalo)[2]), file = "~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML.nuc")
+for(i in 1:dim(bmpr1bb_cDNA_target_clustalo)[1]){
+  write(x = rownames(bmpr1bb_cDNA_target_clustalo)[i], file = "~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML.nuc", append = T)
+  write(x = toupper(paste(as.character(bmpr1bb_cDNA_target_clustalo[i,]), collapse = "")), file = "~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML.nuc", append = T)
+}
+#Generating the guide tree
+F_ToL <- read.tree("~/Projects/Herring/data/Fish_tree_of_life/actinopt_12k_raxml.tre")
+Guide_tree <- keep.tip(F_ToL, grep("Clupea_harengus|Oryzias_latipes|Lepisosteus_oculatus|Danio_rerio|Gasterosteus_aculeatus", F_ToL$tip.label))
+Guide_tree$tip.label <- c("Medaka", "Stickleback", "Zebrafish", "Herring", "Spotted_Gar")
+plot.phylo(Guide_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "RAxML")
+write.tree(phy = Guide_tree, file = "~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML.tre")
+#Checking after addition of A and Y copies
+Guide_tree_ed <- read.tree("~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML_edited.tre")
+plot.phylo(Guide_tree_ed, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "Guide")
+
+#Checking output
+PAML_tree <- read.tree("~/Projects/Herring/data/SexDetermination/bmpr1bb_PAML_output.tre")
+tip_color_vec <- rep("black", times = length(PAML_tree[[1]]$tip.label))
+tip_color_vec[4] <- "darkorchid1"
+tip_color_vec[5] <- "darkorchid4"
+pdf(file = "~/Projects/Herring/doc/SexDet/bmpr1bb_PAML_trees.pdf")
+plot.phylo(PAML_tree[[1]], type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "Nucleotide distance", lab4ut = "axial")
+plot.phylo(PAML_tree[[2]], type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "dS", lab4ut = "axial")
+plot.phylo(PAML_tree[[3]], type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "dN", lab4ut = "axial")
+dev.off()
+
+#Comparing models
+#One rate for all branches
+#lnL(ntime:  9  np: 11):  -3038.004655      +0.000000
+lnL_one <- -3038.004655 
+#Two rates (Y, the rest)
+#lnL(ntime:  9  np: 12):  -2989.706657      +0.000000
+lnL_two <- -2989.706657 
+#Three rates (Y,A, the rest)
+#lnL(ntime:  9  np: 13):  -2989.589499      +0.000000
+lnL_three <- -2989.589499
+
+#One_v_Three
+test_df <- 2
+LLRstat <- -2*(lnL_one - lnL_three)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+
+#One_v_Two
+test_df <- 1
+LLRstat <- -2*(lnL_one - lnL_two)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+
+#Two_v_Three
+test_df <- 1
+LLRstat <- -2*(lnL_two - lnL_three)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+
+#Time estimate
+F_ToL_time <- read.tree("~/Projects/Herring/data/Fish_tree_of_life/actinopt_12k_treePL.tre")
+Guide_tree_time <- keep.tip(F_ToL_time, grep("Clupea_harengus|Oryzias_latipes|Lepisosteus_oculatus|Danio_rerio|Gasterosteus_aculeatus", F_ToL_time$tip.label))
+cbind(Guide_tree_time$edge, Guide_tree_time$edge.length)
+#Y, distance from PAML estiamtes, age of LCA Herring/Zebrafish from Fish Tree of Life
+165.8*0.1196/(0.1196+0.5746)
+
+#A, as above
+165.8*0.0686/(0.1196+0.5746)
+
+
+```
+
+
+
+Similar analysis for CATSPER3
+```{r CATSPER3 setup}
+CATSPER3_pre_cDNA_aln <- unzip_reg1_clustalo[,unzip_reg1_chr$chr_pos]
+seqinfo(CATSPER3_autosome_gtf, 1:1) <- Seqinfo(paste("chr", 8, sep = ""))
+rev_comp_chrY <- readDNAStringSet("~/Projects/Herring/data/SexDetermination/rev_comp_chrY_v1.0.fa")
+names(rev_comp_chrY)[1] <- "rc_chrY"
+
+chr8_offset <- 22250000
+aln_interval_CATSPER3 <- numeric()
+for(i in 1:length(CATSPER3_autosome_gtf)){
+  aln_interval_CATSPER3 <- c(aln_interval_CATSPER3, CATSPER3_autosome_gtf@ranges@start[i]:(CATSPER3_autosome_gtf@ranges@start[i] + CATSPER3_autosome_gtf@ranges@width[i] -1) - chr8_offset)
+}
+checkAlignment(CATSPER3_pre_cDNA_aln[,c(aln_interval_CATSPER3, max(aln_interval_CATSPER3)+1)])
+paste(as.character(trans(x=CATSPER3_pre_cDNA_aln[1,aln_interval_CATSPER3], codonstart = 1)), collapse = "") #Checking frame
+paste(as.character(trans(x=CATSPER3_pre_cDNA_aln[2,aln_interval_CATSPER3], codonstart = 1)), collapse = "") #Checking frame
+#The gene models do not line up throughout the entire gene, trying alternatives
+#Y_gene_AAseq <- read.FASTA("~/Projects/Herring/data/SexDetermination/maker_final_Y_related_genes.faa", type = "AA")
+Y_gene_AAseq <- read.FASTA("~/Projects/Herring/data/SexDetermination/maker_final_functional_and_fold_annotation.faa", type = "AA")
+Y_gene_gtf <- rtracklayer::import("~/Projects/Herring/data/SexDetermination/maker_functional_Y_related_genes.gtf", format = "gff3")
+Y_gene_gtf[grep("catsper3",Y_gene_gtf$Name)]
+
+CATSPER3Y_CDS <- Y_gene_gtf[which(as.character(Y_gene_gtf$Parent) == "CLUHARMM00000000015")]
+CATSPER3Y_CDS <- CATSPER3Y_CDS[CATSPER3Y_CDS$type == "CDS"]
+CATSPER3Y_cDNA <- as.DNAbin(reverseComplement(unlist(rev_comp_chrY[CATSPER3Y_CDS]))) # cDNA directly from gtf positions
+names(CATSPER3Y_cDNA) <- "Herring_CATSPER3Y"
+paste(as.character(trans(x=CATSPER3Y_cDNA, codonstart = 1)), collapse = "") # Checks out
+CATSPER3Y_AA <- trans(x=CATSPER3Y_cDNA, codonstart = 1)
+write.FASTA(CATSPER3Y_cDNA, file = "~/Projects/Herring/data/SexDetermination/CATSPER3Y.fa")
+write.FASTA(CATSPER3Y_AA, file = "~/Projects/Herring/data/SexDetermination/CATSPER3Y.fa", append = T)
+
+CATSPER3A_cDNA <- as.DNAbin(unlist(Ch_v2.0.2[CATSPER3_autosome_gtf])) # cDNA directly from gtf positions
+names(CATSPER3A_cDNA) <- "Herring_CATSPER3A"
+paste(as.character(trans(x=CATSPER3A_cDNA[[1]], codonstart = 3)), collapse = "") #Missing the starting M, bur otherwise consistent with the alignment above
+CATSPER3A_AA <- as.list(trans(x=CATSPER3_pre_cDNA_aln[2,aln_interval_CATSPER3], codonstart = 1))
+
+writeXStringSet(Ch_v2.0.2[GRanges("chr8:22255000-22270000")], "~/Projects/Herring/data/SexDetermination/CATSPER3A.fa")
+CATSPER3A_cDNA_XString <- DNAStringSet(paste(as.character(CATSPER3A_cDNA)[[1]], collapse = ""))
+names(CATSPER3A_cDNA_XString) <- "Herring_CATSPER3A"
+writeXStringSet(CATSPER3A_cDNA_XString, "~/Projects/Herring/data/SexDetermination/CATSPER3A.fa", append = T)
+#write.dna(CATSPER3A_cDNA, file = "~/Projects/Herring/data/SexDetermination/CATSPER3A.fa", append = T, nbcol = 60, format = "fasta")
+
+#Other species
+Spotted_gar_CATSPER3 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Lepisosteus_oculatus_CATSPER3_201_sequence.fa")
+River_trout_CATSPER3 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Salmo_trutta_CATSPER3_201_sequence.fa")
+#River_trout_CATSPER3_AA <- as.list(trans(River_trout_CATSPER3[[1]][(46*3+2):((415+46)*3+1)]))
+River_trout_CATSPER3_cDNA <- River_trout_CATSPER3
+River_trout_CATSPER3_cDNA[[1]] <- River_trout_CATSPER3[[1]][(46*3+2):((415+46)*3+1)]
+River_trout_CATSPER3_AA <- trans(River_trout_CATSPER3_cDNA)
+#names(River_trout_CATSPER3_AA) <- "River_trout_CATSPER3"
+Coelacanth_CATSPER3 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Latimeria_chalumnae_CATSPER3_sequence.fa")
+Coelacanth_CATSPER3_AA <- trans(Coelacanth_CATSPER3)
+Pike_CATSPER3 <- read.FASTA("~/Projects/Herring/data/SexDetermination/Esox_lucius_CATSPER3_201_sequence.fa")
+Pike_CATSPER3_AA <- trans(Pike_CATSPER3)
+
+
+
+#Aligning on the AA level
+CATSPER3_AA_clustalo <- clustalomega(c(CATSPER3Y_AA, CATSPER3A_AA, trans(Spotted_gar_CATSPER3), River_trout_CATSPER3_AA, Pike_CATSPER3_AA, Coelacanth_CATSPER3_AA)) 
+image(CATSPER3_AA_clustalo)
+#Coelacanth: CATSPER3-201 seems the best match to other CATSPER3
+CATSPER3_AA_clustalo <- clustalomega(c(CATSPER3Y_AA, CATSPER3A_AA, trans(Spotted_gar_CATSPER3), River_trout_CATSPER3_AA, Pike_CATSPER3_AA, Coelacanth_CATSPER3_AA[1]))
+
+#Aligning on the DNA level
+CATSPER3_cDNAs <- c(CATSPER3Y_cDNA, CATSPER3A_cDNA, Spotted_gar_CATSPER3, River_trout_CATSPER3_cDNA, Pike_CATSPER3, Coelacanth_CATSPER3[1])
+names(CATSPER3_cDNAs) <- c("Herring_Y", "Herring_A", "Spotted_Gar", "River_Trout", "Northern_Pike", "Coelacanth")
+CATSPER3_DNA_clustalo <- clustalomega(CATSPER3_cDNAs)
+image(CATSPER3_DNA_clustalo)
+#alview(CATSPER3_clustalo,showpos = F)
+
+#Subsetting alignments for dN/dS calculations
+#raw alignment
+image(trans(CATSPER3_DNA_clustalo, codonstart = 3))
+dnds(CATSPER3_DNA_clustalo, codonstart = 3)
+#Does not have a consistent frame across the entire alignment - using PAL2NAL to rectify
+rownames(CATSPER3_AA_clustalo) <- c("Herring_Y", "Herring_A", "Spotted_Gar", "River_Trout", "Northern_Pike", "Coelacanth")
+write.FASTA(CATSPER3_AA_clustalo, file = "~/Projects/Herring/data/SexDetermination/CATSPER3_other_fish_aln.fa")
+write.FASTA(CATSPER3_cDNAs, file = "~/Projects/Herring/data/SexDetermination/CATSPER3_cDNAs.fa" )
+#~/Software/pal2nal.v14/pal2nal.pl CATSPER3_other_fish_aln.fa CATSPER3_cDNAs.fa -output fasta > CATSPER3_NAL.aln
+#Works, but herring_A needed an added leading "G" to make a startcodon 
+CATSPER3_PAL2NAL <- read.dna("~/Projects/Herring/data/SexDetermination/CATSPER3_NAL.aln", as.matrix = T, format = "fasta")
+image(CATSPER3_PAL2NAL)
+image(trans(CATSPER3_PAL2NAL, codonstart = 1))
+dnds(CATSPER3_PAL2NAL, codonstart = 1)
+
+#First shared block
+b1_interval <- 457:717
+image(CATSPER3_PAL2NAL[,b1_interval])
+image(trans(CATSPER3_PAL2NAL[,b1_interval], codonstart = 1))
+dnds(CATSPER3_PAL2NAL[,b1_interval], codonstart = 1)
+
+
+
+#First Y + other block - not so informative
+#b1_ext_interval <- 325:890
+#image(CATSPER3_DNA_clustalo[,b1_ext_interval])
+#image(trans(CATSPER3_DNA_clustalo[,b1_ext_interval], codonstart = 1))
+#dnds(CATSPER3_DNA_clustalo[,b1_ext_interval], codonstart = 1)
+
+#Second block
+b2_interval <- 976:1191
+image(CATSPER3_PAL2NAL[,b2_interval])
+image(trans(CATSPER3_PAL2NAL[,b2_interval], codonstart = 1))
+dnds(CATSPER3_PAL2NAL[,b2_interval], codonstart = 1)
+
+```
+
+```{r CATSPER3 visualisation}
+
+
+#Amino acid distance tree
+CATSPER3_aa_dist <- dist.aa(CATSPER3_AA_clustalo ,scaled = T)
+CATSPER3_aa_tree <- bionj(CATSPER3_aa_dist)
+#CATSPER3_aa_tree$tip.label <- c("Herring_Y", "Spotted_Gar", "River_Trout", "Herring_A")
+
+#Nucleotide distance tree
+CATSPER3_dna_dist <- dist.dna(CATSPER3_PAL2NAL, model = "GG95")
+CATSPER3_dna_tree <- bionj(CATSPER3_dna_dist)
+#CATSPER3_dna_tree$tip.label <- c("Herring_Y", "Spotted_Gar", "River_Trout", "Herring_A")
+
+#Subtrees
+CATSPER3_dna_dist_b1 <- dist.dna(CATSPER3_PAL2NAL[,b1_interval], model = "GG95")
+CATSPER3_dna_tree_b1 <- bionj(CATSPER3_dna_dist_b1)
+CATSPER3_aa_dist_b1 <- dist.aa(trans(CATSPER3_PAL2NAL[,b1_interval], codonstart = 1) ,scaled = T)
+CATSPER3_aa_tree_b1 <- bionj(CATSPER3_aa_dist_b1)
+
+#CATSPER3_dna_dist_b1_ext <- dist.dna(CATSPER3_PAL2NAL[,b1_ext_interval], model = "GG95")
+#CATSPER3_dna_tree_b1_ext <- bionj(CATSPER3_dna_dist_b1_ext)
+
+CATSPER3_dna_dist_b2 <- dist.dna(CATSPER3_PAL2NAL[,b2_interval], model = "GG95")
+CATSPER3_dna_tree_b2 <- bionj(CATSPER3_dna_dist_b2)
+CATSPER3_aa_dist_b2 <- dist.aa(trans(CATSPER3_PAL2NAL[,b2_interval], codonstart = 1) ,scaled = T)
+CATSPER3_aa_tree_b2 <- bionj(CATSPER3_aa_dist_b2)
+
+
+tip_color_vec <- rep("black", times = length(CATSPER3_aa_tree$tip.label))
+tip_color_vec[1] <- "darkorchid1"
+tip_color_vec[2] <- "darkorchid4"
+tree_angle <- 45
+pdf(file = "~/Projects/Herring/doc/SexDet/CATSPER3_trees.pdf")
+image(CATSPER3_AA_clustalo, main = "AA alignment")
+plot.phylo(CATSPER3_aa_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "AA distance")
+image(CATSPER3_DNA_clustalo, main = "DNA alignment")
+plot.phylo(CATSPER3_dna_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "Nucleotide distance")
+
+plot.phylo(CATSPER3_dna_tree_b1, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "Nucleotide distance, block 1")
+plot.phylo(CATSPER3_aa_tree_b1, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "AA distance, block 1")
+#plot.phylo(CATSPER3_dna_tree_b1_ext, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "Nucleotide distance, block 1 extended")
+
+plot.phylo(CATSPER3_dna_tree_b2, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle, edge.width = 2, main = "Nucleotide distance, block 2")
+plot.phylo(CATSPER3_aa_tree_b2, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle, edge.width = 2, main = "AA distance, block 2")
+
+dev.off()
+```
+
+```{r CATSPER3 PAML}
+#Generating files need for PAML analysis
+dim(CATSPER3_PAL2NAL)
+write(x = paste0(dim(CATSPER3_PAL2NAL)[1], " ", dim(CATSPER3_PAL2NAL)[2]), file = "~/Projects/Herring/data/SexDetermination/CATSPER3_PAML.nuc")
+for(i in 1:dim(CATSPER3_PAL2NAL)[1]){
+  write(x = rownames(CATSPER3_PAL2NAL)[i], file = "~/Projects/Herring/data/SexDetermination/CATSPER3_PAML.nuc", append = T)
+  write(x = toupper(paste(as.character(CATSPER3_PAL2NAL[i,]), collapse = "")), file = "~/Projects/Herring/data/SexDetermination/CATSPER3_PAML.nuc", append = T)
+}
+
+#PAML-files of the moreconsistent block, for comparison with the full version
+write(x = paste0(dim(CATSPER3_PAL2NAL[,b1_interval])[1], " ", dim(CATSPER3_PAL2NAL[,b1_interval])[2]), file = "~/Projects/Herring/data/SexDetermination/CATSPER3_block1_PAML.nuc")
+for(i in 1:dim(CATSPER3_PAL2NAL[,b1_interval])[1]){
+  write(x = rownames(CATSPER3_PAL2NAL[,b1_interval])[i], file = "~/Projects/Herring/data/SexDetermination/CATSPER3_block1_PAML.nuc", append = T)
+  write(x = toupper(paste(as.character(CATSPER3_PAL2NAL[i,b1_interval]), collapse = "")), file = "~/Projects/Herring/data/SexDetermination/CATSPER3_block1_PAML.nuc", append = T)
+}
+
+
+#Generating the guide tree
+#F_ToL <- read.tree("~/Projects/Herring/data/Fish_tree_of_life/actinopt_12k_raxml.tre")
+Guide_tree_CATSPER3 <- keep.tip(F_ToL, grep("Clupea_harengus|Salmo_trutta|Lepisosteus_oculatus|Esox_lucius|Latimeria_chalumnae", F_ToL$tip.label))
+Guide_tree_CATSPER3$tip.label <- c("River_Trout","Northern_Pike","Herring", "Spotted_Gar")
+plot.phylo(Guide_tree_CATSPER3, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "RAxML")
+write.tree(phy = Guide_tree_CATSPER3, file = "~/Projects/Herring/data/SexDetermination/CATSPER3_PAML.tre")
+#Checking after addition of A and Y copies, and Coelacanth
+Guide_tree_CATSPER3_ed <- read.tree("~/Projects/Herring/data/SexDetermination/CATSPER3_PAML_ed.tre")
+plot.phylo(Guide_tree_CATSPER3_ed, type = "unrooted", tip.color = tip_color_vec, rotate.tree = 90, edge.width = 2, main = "Guide")
+
+#Checking output
+PAML_CATSPER3_tree <- read.tree("~/Projects/Herring/data/SexDetermination/CATSPER3_PAML_output.tre")
+tip_color_vec_c3 <- rep("black", times = length(PAML_tree[[1]]$tip.label))
+tip_color_vec_c3[3] <- "darkorchid1"
+tip_color_vec_c3[4] <- "darkorchid4"
+pdf(file = "~/Projects/Herring/doc/SexDet/CATSPER3_PAML_trees.pdf")
+image(trans(CATSPER3_PAL2NAL))
+plot.phylo(PAML_CATSPER3_tree[[1]], type = "unrooted", tip.color = tip_color_vec_c3, rotate.tree = 90, edge.width = 2, main = "Substitutions")
+plot.phylo(PAML_CATSPER3_tree[[2]], type = "unrooted", tip.color = tip_color_vec_c3, rotate.tree = 90, edge.width = 2, main = "dS")
+plot.phylo(PAML_CATSPER3_tree[[3]], type = "unrooted", tip.color = tip_color_vec_c3, rotate.tree = 90, edge.width = 2, main = "dN")
+dev.off()
+
+
+#Comparing models
+#One rate for all branches
+#lnL(ntime:  8  np: 10):  -2873.278485      +0.000000
+lnL_CATSPER3_one <- -2873.278485 
+#Two rates (A, the rest)
+#lnL(ntime:  8  np: 11):  -2851.961152      +0.000000
+lnL_CATSPER3_two <- -2851.961152
+#Three rates (Y,A, the rest)
+#lnL(ntime:  8  np: 12):  -2851.338904      +0.000000
+lnL_CATSPER3_three <- -2851.338904
+
+#One_v_Three
+test_df <- 2
+LLRstat <- -2*(lnL_CATSPER3_one - lnL_CATSPER3_three)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+#2.9632e-10
+
+#One_v_Two
+test_df <- 1
+LLRstat <- -2*(lnL_CATSPER3_one - lnL_CATSPER3_two)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+#6.597964e-11
+
+#Two_v_Three
+test_df <- 1
+LLRstat <- -2*(lnL_CATSPER3_two - lnL_CATSPER3_three)
+pchisq(LLRstat,df=test_df,lower.tail=FALSE)
+#0.2646063
+
+
+#Timing
+Guide_tree_CATSPER3_time <- keep.tip(F_ToL_time, grep("Clupea_harengus|Salmo_trutta|Lepisosteus_oculatus|Esox_lucius|Latimeria_chalumnae", F_ToL_time$tip.label))
+#Removing Coelacanth for consistency with the topology of the guide tree
+#Y copy
+177.5*0.0513/(0.0513+0.6430)
+
+```
+
+
+#CATSPERG
+```{r CATSPERG setup}
+Y_gene_gtf[grep("catsperg", Y_gene_gtf$Name)]
+CATSPERG_CDS <- Y_gene_gtf[which(as.character(Y_gene_gtf$Parent) == "CLUHARMM00000000006")]
+CATSPERG_CDS <- CATSPERG_CDS[CATSPERG_CDS$type == "CDS"]
+CATSPERG_cDNA <- as.DNAbin(reverseComplement(unlist(rev_comp_chrY[CATSPERG_CDS]))) # cDNA directly from gtf positions
+names(CATSPERG_cDNA) <- "Herring_CATSPERG"
+paste(as.character(trans(x=CATSPERG_cDNA, codonstart = 1)), collapse = "") # Checks out
+CATSPERG_AA <- trans(x=CATSPERG_cDNA, codonstart = 1)
+
+River_trout_CATSPERG <- read.FASTA("~/Projects/Herring/data/SexDetermination/Salmo_trutta_ENSSTUG00000002718_sequence.fa")
+River_trout_CATSPERG_AA <- trans(River_trout_CATSPERG)
+Coelacanth_CATSPERG <- read.FASTA("~/Projects/Herring/data/SexDetermination/Latimeria_chalumnae_ENSLACG00000015383_sequence.fa")
+Coelacanth_CATSPERG_AA <- trans(Coelacanth_CATSPERG)
+Pike_CATSPERG <- read.FASTA("~/Projects/Herring/data/SexDetermination/Esox_lucius_ENSELUT00000026496_sequence.fa")
+Pike_CATSPERG_AA <- trans(Pike_CATSPERG)
+Salmon_CATSPERG <- read.FASTA("~/Projects/Herring/data/SexDetermination/Salmo_salar_ENSSSAG00000073158_sequence.fa")
+Salmon_CATSPERG_AA <- trans(Salmon_CATSPERG)
+Human_CATSPERG <- read.FASTA("~/Projects/Herring/data/SexDetermination/Homo_sapiens_CATSPERG_sequence.fa")
+Human_CATSPERG_AA <- trans(Human_CATSPERG)
+
+
+#Aligning on the AA level
+CATSPERG_AA_clustalo <- clustalomega(c(CATSPERG_AA, River_trout_CATSPERG_AA, Coelacanth_CATSPERG_AA, Pike_CATSPERG_AA, Salmon_CATSPERG_AA, Human_CATSPERG_AA))
+image.AAbin(CATSPERG_AA_clustalo) 
+#Trout: ENSSTUT00000005992.1 seems the best match to other CATSPERG
+#Coelacanth: ENSLACT00000017593.1 seems the best match to other CATSPERG
+#Salmon: ENSSSAT00000130997.1 seems the best match to other CATSPERG
+#Human: CATSPERG-202 cds:protein_coding seems the best match to other CATSPERG
+#Pike: seems like an outlier, perhaps a paralogue
+
+CATSPERG_AA_clustalo <- clustalomega(c(CATSPERG_AA, River_trout_CATSPERG_AA[3], Coelacanth_CATSPERG_AA[2], Salmon_CATSPERG_AA[1], Human_CATSPERG_AA[2])) #Pike_CATSPERG_AA[1]
+rownames(CATSPERG_AA_clustalo) <- c("Herring_Y", "Brown_Trout", "Coelacanth", "Salmon", "Human")
+dist.aa(CATSPERG_AA_clustalo,scaled = T)
+image.AAbin(CATSPERG_AA_clustalo[c(1,2,4,3,5),])
+
+CATSPERG_cDNA_clustalo <- clustalomega(c(CATSPERG_cDNA, River_trout_CATSPERG[3], Coelacanth_CATSPERG[2], Salmon_CATSPERG[1], Human_CATSPERG[2])) # Pike_CATSPERG[1]
+rownames(CATSPERG_cDNA_clustalo) <- c("Herring_Y", "Brown_Trout", "Coelacanth", "Salmon", "Human")
+image(CATSPERG_cDNA_clustalo[c(1,2,4,3,5),])
+
+```
+
+```{r CATSPERG visualisation}
+
+#alview(CATSPERG_AA_clustalo, file = "~/Projects/Herring/doc/SexDet/CATSPERG_other_fish_aln.txt")
+aln_out_order <- c(2,4,1,3,5)
+aln_breaks <- seq(from = 1, to = length(CATSPERG_AA_clustalo[1,]), by = 140) 
+aln_file <- "~/Projects/Herring/doc/SexDet/CATSPERG_AA_clustalo_wide.txt"
+for(i in 1:(length(aln_breaks)-1)) {
+  alview(CATSPERG_AA_clustalo[aln_out_order,aln_breaks[i]:(aln_breaks[i+1]-1)], showpos = F, file = aln_file)
+  write("", file = aln_file, append = T)
+}
+alview(CATSPERG_AA_clustalo[aln_out_order,aln_breaks[i+1]:length(CATSPERG_AA_clustalo[1,])], file = aln_file, showpos = F)
+
+
+
+#Amino acid distance tree
+CATSPERG_aa_dist <- dist.aa(CATSPERG_AA_clustalo ,scaled = T)
+CATSPERG_aa_tree <- bionj(CATSPERG_aa_dist)
+
+#Nucleotide distance tree
+CATSPERG_dna_dist <- dist.dna(CATSPERG_cDNA_clustalo, model = "GG95")
+CATSPERG_dna_tree <- bionj(CATSPERG_dna_dist)
+
+
+tip_color_vec <- rep("black", times = length(CATSPERG_aa_tree$tip.label))
+tip_color_vec[1] <- "darkorchid1"
+#tip_color_vec[4] <- "darkorchid4"
+tree_angle <- 45
+pdf(file = "~/Projects/Herring/doc/SexDet/CATSPERG_trees.pdf")
+image(CATSPERG_AA_clustalo[c(1,2,4,3,5),], main = "AA alignment")
+plot.phylo(CATSPERG_aa_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "AA distance")
+image(CATSPERG_cDNA_clustalo[c(1,2,4,3,5),], main = "DNA alignment")
+plot.phylo(CATSPERG_dna_tree, type = "unrooted", tip.color = tip_color_vec, rotate.tree = tree_angle , edge.width = 2, main = "Nucleotide distance")
+dev.off()
+```
+
+
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
